@@ -42,9 +42,9 @@ verification: &verification
   branches:
     V0: {type: hold, strength: 0.0}
     V1: {type: passive, strength: 0.0}
-    V2: {type: axial_probe, strength: 0.04}
-    V3: {type: axial_probe, strength: 0.10}
-    V4: {type: axial_probe, strength: 0.22}
+    V2: {type: axial_probe, strength: 0.02}
+    V3: {type: axial_probe, strength: 0.08}
+    V4: {type: axial_probe, strength: 0.12}
 analysis: &analysis
   bootstrap_samples: 200
   confidence_level: 0.95
