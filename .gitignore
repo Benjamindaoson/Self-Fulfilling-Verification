@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.codegraph/
+*.py[cod]
+*.egg-info/
+runs/
+docs/architecture/*-visual-check/
+docs/architecture/*.visual-check.*

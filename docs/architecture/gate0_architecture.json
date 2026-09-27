@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Gate-0 可证伪实验运行架构",
+    "locale": "zh-CN",
+    "output": "gate0_architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1390, 800]
+  },
+  "components": [
+    {"id": "frozen_config", "type": "external", "label": "冻结 YAML 配置", "sublabel": "predicate / seeds", "pos": [35, 150], "size": [170, 72]},
+    {"id": "runner", "type": "backend", "label": "实验运行器", "sublabel": "python -m gate0.run", "pos": [250, 150], "size": [160, 72]},
+    {"id": "natural_task", "type": "backend", "label": "自然 Task Rollout", "sublabel": "pre-task randomization + settle", "pos": [455, 148], "size": [180, 76]},
+    {"id": "snapshot", "type": "security", "label": "S⁻ 完整快照", "sublabel": "mjSTATE_INTEGRATION + SHA-256", "pos": [680, 148], "size": [185, 76]},
+    {"id": "branches", "type": "backend", "label": "五个配对分支", "sublabel": "V0 / V1 / V2 / V3 / V4", "pos": [910, 148], "size": [175, 76]},
+    {"id": "trajectories", "type": "database", "label": "原始证据 Ledger", "sublabel": "Parquet + compressed NPZ", "pos": [1130, 148], "size": [180, 76]},
+    {"id": "analyzer", "type": "backend", "label": "离线分析器", "sublabel": "python -m gate0.analyze", "pos": [1130, 335], "size": [180, 72]},
+    {"id": "paired_metrics", "type": "backend", "label": "因果指标", "sublabel": "VIC / VID / CS / bootstrap", "pos": [660, 505], "size": [180, 76]},
+    {"id": "recoverability", "type": "backend", "label": "回溯可恢复性", "sublabel": "R1 / R2 / R3 × 3 classifiers", "pos": [900, 505], "size": [190, 76]},
+    {"id": "figures", "type": "cloud", "label": "图表与指标", "sublabel": "PNG / PDF / JSON", "pos": [1140, 505], "size": [170, 76]},
+    {"id": "decision", "type": "security", "label": "冻结 Gate 判决", "sublabel": "GO / CONTINUE / KILL", "pos": [1140, 665], "size": [180, 76]}
+  ],
+  "boundaries": [
+    {"kind": "region", "label": "CPU-only MuJoCo execution", "wraps": ["runner", "natural_task", "snapshot", "branches"]},
+    {"kind": "security-group", "label": "Frozen confirmatory evidence boundary", "wraps": ["frozen_config", "snapshot", "trajectories", "analyzer", "paired_metrics", "recoverability", "figures", "decision"]}
+  ],
+  "connections": [
+    {"id": "config_run", "from": "frozen_config", "to": "runner", "label": "canonical hash", "variant": "security", "labelAt": [230, 245]},
+    {"id": "run_task", "from": "runner", "to": "natural_task", "label": "seeded rollout", "variant": "emphasis", "labelAt": [432, 128]},
+    {"id": "task_snapshot", "from": "natural_task", "to": "snapshot", "label": "freeze Y_pre", "variant": "security", "labelAt": [658, 245]},
+    {"id": "snapshot_branches", "from": "snapshot", "to": "branches", "label": "identical bytes", "variant": "emphasis", "labelAt": [888, 245]},
+    {"id": "branches_ledger", "from": "branches", "to": "trajectories", "label": "full traces", "labelAt": [1108, 128]},
+    {"id": "ledger_analyzer", "from": "trajectories", "to": "analyzer", "label": "read immutable ledgers", "fromSide": "bottom", "toSide": "top", "labelAt": [1304, 240]},
+    {"id": "analyzer_metrics", "from": "analyzer", "to": "paired_metrics", "label": "paired parents", "labelAt": [950, 435]},
+    {"id": "analyzer_recovery", "from": "analyzer", "to": "recoverability", "label": "group split", "labelAt": [1095, 475]},
+    {"id": "metrics_figures", "from": "paired_metrics", "to": "figures", "label": "CI + margins", "fromSide": "bottom", "toSide": "bottom", "via": [[750, 625], [1225, 625]], "labelAt": [985, 640]},
+    {"id": "recovery_figures", "from": "recoverability", "to": "figures", "label": "pre/post scores", "labelAt": [1115, 603]},
+    {"id": "figures_decision", "from": "figures", "to": "decision", "label": "frozen thresholds", "variant": "security", "fromSide": "bottom", "toSide": "top", "labelDx": 92}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "因果对照", "items": ["同一 S⁻ 克隆出五个 verification branches", "Y_pre 在 verification 前计算且不可变"]},
+    {"dot": "amber", "title": "主要信任边界", "items": ["debug 与 main seeds 不重叠", "完整 trace 使用 parent-level group split"]},
+    {"dot": "rose", "title": "终止纪律", "items": ["只输出 GO / CONTINUE / KILL", "Gate-0 不授权 Gate-1 实现"]}
+  ]
+}
