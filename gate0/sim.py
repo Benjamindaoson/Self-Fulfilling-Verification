@@ -106,6 +106,9 @@ class ConnectorEpisode:
         environment = {
             "clearance": _uniform(self.rng, model["clearance"]),
             "friction": _uniform(self.rng, model["friction"]),
+            "contact_timeconst": _uniform(self.rng, model["contact_timeconst"]),
+            "contact_dampratio": _uniform(self.rng, model["contact_dampratio"]),
+            "contact_width": _uniform(self.rng, model["contact_width"]),
         }
         controller = {
             "target_x": _uniform(self.rng, randomization["target_xy_noise"]),
@@ -137,6 +140,9 @@ class ConnectorEpisode:
         wall = float(model["wall_thickness"])
         inner = max(half_x, half_y) + self.params["environment_parameters"]["clearance"]
         friction = self.params["environment_parameters"]["friction"]
+        contact_timeconst = self.params["environment_parameters"]["contact_timeconst"]
+        contact_dampratio = self.params["environment_parameters"]["contact_dampratio"]
+        contact_width = self.params["environment_parameters"]["contact_width"]
         wall_z = top - depth / 2.0
         floor_z = top - depth - 0.002
         outer = inner + wall
@@ -146,7 +152,7 @@ class ConnectorEpisode:
   <compiler angle="degree"/>
   <option timestep="{timestep}" gravity="0 0 0" integrator="Euler" iterations="50" cone="elliptic"/>
   <default>
-    <geom friction="{friction} 0.005 0.0001" condim="4" solref="0.004 1" solimp="0.9 0.95 0.001"/>
+    <geom friction="{friction} 0.005 0.0001" condim="4" solref="{contact_timeconst} {contact_dampratio}" solimp="0.9 0.95 {contact_width}"/>
   </default>
   <worldbody>
     <body name="socket">
@@ -295,7 +301,7 @@ class ConnectorEpisode:
         command = np.zeros(6, dtype=np.float64)
         if branch_config["type"] == "axial_probe":
             command[2] = -strength
-        records: list[dict[str, Any]] = []
+        records: list[dict[str, Any]] = [self._record(np.zeros(6, dtype=np.float64), 0.0)]
         for _ in range(int(self.config["simulation"]["verification_steps"])):
             self._step(command)
             records.append(self._record(command, strength))

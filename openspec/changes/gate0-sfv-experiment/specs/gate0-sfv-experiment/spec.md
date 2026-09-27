@@ -36,14 +36,14 @@ The system SHALL reproduce identical V0 trajectories and outcomes when the same 
 - **THEN** the serialized trajectories and outcomes are numerically identical
 
 ### Requirement: Causal and naturalness metrics
-The system SHALL report per-branch transition counts, Verification-Induced Completion among `Y_pre=0` parents with `control_Y_post=0`, Verification-Induced Disruption among `Y_pre=1` parents, causal soundness, credit delta, fixed-bin margin audits, and 95% parent-level bootstrap confidence intervals.
+The system SHALL report per-branch transition counts, Verification-Induced Completion over all `Y_pre=0` parents (with the completion event requiring `control_Y_post=0` and branch `Y_post=1`), Verification-Induced Disruption among `Y_pre=1` parents, causal soundness, credit delta, fixed-bin margin audits, and 95% parent-level bootstrap confidence intervals.
 
 #### Scenario: Paired VIC calculation
 - **WHEN** a failed parent remains failed in V0 but succeeds in a probe branch
 - **THEN** that probe row contributes one Verification-Induced Completion event
 
 ### Requirement: Leakage-safe retrospective recovery
-The system SHALL predict both `Y_pre` and `Y_post` under R1 final-state, R2 trajectory-summary, and R3 resampled full-trace regimes using LogisticRegression, RandomForestClassifier, and MLPClassifier with a deterministic group split by `parent_episode_id`.
+The system SHALL predict both `Y_pre` and `Y_post` under R1 final-state, R2 trajectory-summary, and R3 resampled full-trace regimes using LogisticRegression, RandomForestClassifier, and MLPClassifier with a deterministic group split by `parent_episode_id`. The gate SHALL use the maximum balanced accuracy across this complete predeclared suite as the strongest lightweight baseline for each target and regime, without adding or removing a family after confirmatory results. The system SHALL persist majority baselines, split membership, class counts, and per-parent holdout predictions.
 
 #### Scenario: No parent crosses split boundary
 - **WHEN** train and test indices are generated
@@ -54,7 +54,7 @@ The system SHALL write manifest, parent, branch, and trajectory-index Parquet le
 
 #### Scenario: Re-analysis from ledger
 - **WHEN** `python -m gate0.analyze --run <run_dir>` is invoked
-- **THEN** analysis regenerates metrics, figures, and reports without rerunning simulation or changing the manifest configuration
+- **THEN** analysis first verifies the frozen config, input ledgers, snapshots, and trajectory hashes, then regenerates metrics, figures, and reports without rerunning simulation or changing the manifest configuration
 
 ### Requirement: Automatic scientific gate
 The system SHALL emit exactly GO, CONTINUE, or KILL by applying the frozen gate thresholds and SHALL list claims that are prohibited by the observed evidence.

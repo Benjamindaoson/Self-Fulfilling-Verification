@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+from importlib.metadata import version
 import json
 import math
 from pathlib import Path
+import platform
+import subprocess
 from typing import Any
 import warnings
 
@@ -23,7 +27,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from gate0.config import load_config
+from gate0.config import config_hash, load_config
 from gate0.metrics import annotate_transitions, bootstrap_binary, group_split, summarize_branch
 
 
@@ -45,6 +49,90 @@ def _write_json(path: Path, value: Any) -> None:
     path.write_text(
         json.dumps(_json_safe(value), indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False), encoding="utf-8"
     )
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _run_file(run_dir: Path, value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else run_dir / path
+
+
+def _verify_run_integrity(run_dir: Path, config: dict[str, Any]) -> dict[str, Any]:
+    """Fail closed before analysis writes if any frozen simulator input changed."""
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if config_hash(config) != manifest.get("config_hash"):
+        raise RuntimeError("config hash mismatch: frozen run configuration changed")
+
+    ledger_hashes = manifest.get("input_ledger_hashes")
+    if not isinstance(ledger_hashes, dict):
+        raise RuntimeError("manifest is missing immutable input ledger hashes")
+    expected_ledgers = {
+        "results/parent_rollouts.parquet",
+        "results/verification_branches.parquet",
+        "results/trajectory_index.parquet",
+    }
+    if set(ledger_hashes) != expected_ledgers:
+        raise RuntimeError("manifest does not enumerate the three immutable input ledgers")
+    for relative, expected in ledger_hashes.items():
+        path = _run_file(run_dir, relative)
+        if not path.is_file() or _sha256(path) != expected:
+            raise RuntimeError(f"input ledger hash mismatch: {relative}")
+
+    trajectory_index_path = run_dir / "results" / "trajectory_index.parquet"
+    trajectories = pd.read_parquet(trajectory_index_path)
+    for row in trajectories.itertuples(index=False):
+        path = _run_file(run_dir, row.trajectory_path)
+        if not path.is_file() or _sha256(path) != row.sha256:
+            raise RuntimeError(f"trajectory hash mismatch: {row.trajectory_path}")
+
+    parents = pd.read_parquet(run_dir / "results" / "parent_rollouts.parquet")
+    for row in parents.itertuples(index=False):
+        path = _run_file(run_dir, row.snapshot_path)
+        if not path.is_file():
+            raise RuntimeError(f"snapshot missing: {row.snapshot_path}")
+        snapshot = np.load(path, allow_pickle=False)
+        if hashlib.sha256(snapshot.tobytes()).hexdigest() != row.snapshot_hash:
+            raise RuntimeError(f"snapshot hash mismatch: {row.snapshot_path}")
+    return manifest
+
+
+def _analysis_provenance(run_dir: Path) -> dict[str, Any]:
+    root_result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=run_dir, capture_output=True, text=True, check=False
+    )
+    if root_result.returncode != 0:
+        raise RuntimeError("analysis must run inside the source Git repository")
+    repo_root = Path(root_result.stdout.strip()).resolve()
+
+    def git(*args: str) -> str:
+        result = subprocess.run(["git", *args], cwd=repo_root, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(f"git {' '.join(args)} failed during analysis provenance")
+        return result.stdout.strip()
+
+    if git("status", "--porcelain=v1"):
+        raise RuntimeError("refusing analysis from a dirty Git worktree")
+    lock_path = repo_root / "requirements.lock.txt"
+    if not lock_path.is_file():
+        raise RuntimeError("requirements.lock.txt is required for analysis")
+    return {
+        "git_commit": git("rev-parse", "HEAD"),
+        "git_dirty": False,
+        "dependency_lock_sha256": _sha256(lock_path),
+        "python_version": platform.python_version(),
+        "dependency_versions": {
+            package: version(package)
+            for package in ("matplotlib", "mujoco", "numpy", "pandas", "pyarrow", "PyYAML", "scikit-learn", "scipy")
+        },
+    }
 
 
 def _as_2d(array: np.ndarray) -> np.ndarray:
@@ -112,7 +200,7 @@ def _trace_features(trace: dict[str, np.ndarray], resample_steps: int, timestep:
                 [
                     np.max(trace["contact_force"]),
                     np.mean(trace["contact_force"]),
-                    np.sum(trace["contact_force"]) * timestep,
+                    np.sum(trace["contact_force"][1:]) * timestep,
                     np.max(trace["contact_penetration"]),
                     path_length,
                     contact_onset,
@@ -206,7 +294,7 @@ def _bootstrap_balanced(y_true: np.ndarray, y_pred: np.ndarray, samples: int, co
 
 def _recoverability(
     branches: pd.DataFrame, features: dict[str, np.ndarray], config: dict[str, Any]
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     analysis = config["analysis"]
     groups = branches["parent_episode_id"].to_numpy()
     train_index, test_index = group_split(groups, float(analysis["test_fraction"]), int(analysis["split_seed"]))
@@ -214,17 +302,57 @@ def _recoverability(
     if not train_groups.isdisjoint(test_groups):
         raise RuntimeError("parent leakage in train/test split")
     records: list[dict[str, Any]] = []
-    best: dict[str, Any] = {}
+    predictions: list[dict[str, Any]] = []
+    falsification_max: dict[str, Any] = {}
     for branch_number, branch_id in enumerate(config["verification"]["branches"]):
         branch_mask = branches["branch"].to_numpy() == branch_id
         branch_train = branch_mask & np.asarray([group in train_groups for group in groups])
         branch_test = branch_mask & np.asarray([group in test_groups for group in groups])
-        best[branch_id] = {}
+        falsification_max[branch_id] = {}
         for target_name, target_column in (("Y_pre", "Y_pre"), ("Y_post", "Y_post")):
             y = branches[target_column].to_numpy(dtype=int)
-            best[branch_id][target_name] = {}
+            falsification_max[branch_id][target_name] = {}
             for regime_number, (regime, x) in enumerate(features.items()):
-                candidates = []
+                suite_records: list[dict[str, Any]] = []
+                y_train, y_test = y[branch_train], y[branch_test]
+                class_counts = {
+                    "train_negative_n": int((y_train == 0).sum()),
+                    "train_positive_n": int((y_train == 1).sum()),
+                    "test_negative_n": int((y_test == 0).sum()),
+                    "test_positive_n": int((y_test == 1).sum()),
+                }
+                majority = int(y_train.mean() >= 0.5)
+                majority_prediction = np.full(len(y_test), majority, dtype=int)
+                baseline_seed = int(analysis["classifier_seed"]) + branch_number * 100 + regime_number * 10 + 9
+                baseline_ci = _bootstrap_balanced(
+                    y_test, majority_prediction, int(analysis["bootstrap_samples"]),
+                    float(analysis["confidence_level"]), baseline_seed,
+                )
+                records.append({
+                    "branch": branch_id,
+                    "verification_strength": float(config["verification"]["branches"][branch_id]["strength"]),
+                    "target": target_name,
+                    "regime": regime,
+                    "model": "MajorityBaseline",
+                    "train_n": int(branch_train.sum()),
+                    "test_n": int(branch_test.sum()),
+                    **class_counts,
+                    "status": "OK",
+                    "accuracy": float(accuracy_score(y_test, majority_prediction)),
+                    "balanced_accuracy": baseline_ci["estimate"],
+                    "roc_auc": None,
+                    "ci": baseline_ci,
+                    "test_positive_rate": float(y_test.mean()),
+                    "predicted_positive_rate": float(majority_prediction.mean()),
+                })
+                test_rows = branches.loc[branch_test]
+                for row_number, (row_index, row) in enumerate(test_rows.iterrows()):
+                    predictions.append({
+                        "row_index": int(row_index), "parent_episode_id": row["parent_episode_id"],
+                        "seed": int(row["seed"]), "branch": branch_id, "target": target_name,
+                        "regime": regime, "model": "MajorityBaseline", "y_true": int(y_test[row_number]),
+                        "y_pred": majority, "probability": float(majority),
+                    })
                 for model_number, (model_name, model) in enumerate(_models(int(analysis["classifier_seed"])).items()):
                     base = {
                         "branch": branch_id,
@@ -236,8 +364,8 @@ def _recoverability(
                         "model": model_name,
                         "train_n": int(branch_train.sum()),
                         "test_n": int(branch_test.sum()),
+                        **class_counts,
                     }
-                    y_train, y_test = y[branch_train], y[branch_test]
                     if len(np.unique(y_train)) < 2 or len(np.unique(y_test)) < 2:
                         record = {**base, "status": "N/A_SINGLE_CLASS", "accuracy": None, "balanced_accuracy": None, "roc_auc": None, "ci": None}
                     else:
@@ -264,18 +392,34 @@ def _recoverability(
                             "test_positive_rate": float(y_test.mean()),
                             "predicted_positive_rate": float(prediction.mean()),
                         }
+                        for row_number, (row_index, row) in enumerate(test_rows.iterrows()):
+                            predictions.append({
+                                "row_index": int(row_index), "parent_episode_id": row["parent_episode_id"],
+                                "seed": int(row["seed"]), "branch": branch_id, "target": target_name,
+                                "regime": regime, "model": model_name, "y_true": int(y_test[row_number]),
+                                "y_pred": int(prediction[row_number]), "probability": float(probability[row_number]),
+                            })
                     records.append(record)
                     if record["status"] == "OK":
-                        candidates.append(record)
-                best[branch_id][target_name][regime] = (
-                    max(candidates, key=lambda item: (item["balanced_accuracy"], item["accuracy"])) if candidates else None
+                        suite_records.append(record)
+                falsification_max[branch_id][target_name][regime] = (
+                    max(suite_records, key=lambda item: (item["balanced_accuracy"], item["accuracy"]))
+                    if suite_records else None
                 )
     split = {
         "train_parent_count": len(train_groups),
         "test_parent_count": len(test_groups),
         "overlap": sorted(train_groups.intersection(test_groups)),
     }
-    return records, {"best": best, "split": split}
+    assignments = [
+        {"parent_episode_id": group, "split": "train" if group in train_groups else "test"}
+        for group in sorted(set(groups))
+    ]
+    return records, {
+        "falsification_rule": analysis["falsification_rule"],
+        "falsification_max": falsification_max,
+        "split": split,
+    }, predictions, assignments
 
 
 def _branch_metrics(branches: pd.DataFrame, config: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -288,17 +432,19 @@ def _branch_metrics(branches: pd.DataFrame, config: dict[str, Any]) -> tuple[dic
         pre_failure = rows["Y_pre"] == 0
         pre_success = rows["Y_pre"] == 1
         post_success = rows["Y_post"] == 1
+        near = pre_failure & (rows["pre_success_margin"] >= -1.0) & (rows["pre_success_margin"] < 0.0)
         seed = int(config["analysis"]["split_seed"]) + index * 10
         intervals = {
             "vic": bootstrap_binary(rows.loc[pre_failure, "verification_induced_completion"], samples, confidence, seed),
+            "vic_near_success": bootstrap_binary(
+                rows.loc[near, "verification_induced_completion"], samples, confidence, seed + 4
+            ),
             "vid": bootstrap_binary(rows.loc[pre_success, "verification_induced_disruption"], samples, confidence, seed + 1),
             "causal_soundness": bootstrap_binary(rows.loc[post_success, "Y_pre"], samples, confidence, seed + 2),
             "delta_credit": bootstrap_binary((rows["Y_post"] - rows["Y_pre"]).to_numpy(), samples, confidence, seed + 3),
         }
-        near = pre_failure & (rows["pre_success_margin"] >= -1.0) & (rows["pre_success_margin"] < 0.0)
-        summary["vic_near_success"] = (
-            float(rows.loc[near, "verification_induced_completion"].mean()) if bool(near.any()) else float("nan")
-        )
+        summary["vic_near_success"] = intervals["vic_near_success"]["estimate"]
+        summary["control_stable_pre_failures"] = int((pre_failure & (rows["control_Y_post"] == 0)).sum())
         summary["verification_strength"] = float(rows["verification_strength"].iloc[0])
         summaries[branch_id], bootstrap[branch_id] = summary, intervals
     return summaries, bootstrap
@@ -333,8 +479,8 @@ def _naturalness(branches: pd.DataFrame, config: dict[str, Any]) -> tuple[list[d
     return table, audit
 
 
-def _value(best: dict[str, Any], branch: str, target: str, regime: str) -> float | None:
-    record = best[branch][target][regime]
+def _value(decision: dict[str, Any], branch: str, target: str, regime: str) -> float | None:
+    record = decision[branch][target][regime]
     return None if record is None else float(record["balanced_accuracy"])
 
 
@@ -346,11 +492,11 @@ def _decide(
     config: dict[str, Any],
 ) -> tuple[str, dict[str, bool], dict[str, Any], list[str]]:
     gate = config["gate"]
-    best = recovery["best"]
+    falsification_max = recovery["falsification_max"]
     vic = {branch: branch_metrics[branch]["vic"] for branch in ("V2", "V3", "V4")}
     cs = {branch: branch_metrics[branch]["causal_soundness"] for branch in ("V2", "V3", "V4")}
-    pre = {branch: _value(best, branch, "Y_pre", "R3_full_trace") for branch in ("V2", "V3", "V4")}
-    post = {branch: _value(best, branch, "Y_post", "R3_full_trace") for branch in ("V2", "V3", "V4")}
+    pre = {branch: _value(falsification_max, branch, "Y_pre", "R3_full_trace") for branch in ("V2", "V3", "V4")}
+    post = {branch: _value(falsification_max, branch, "Y_post", "R3_full_trace") for branch in ("V2", "V3", "V4")}
     h1 = bool(vic["V4"] is not None and vic["V4"] >= float(gate["min_vic"]))
     h2 = bool(
         vic["V2"] <= vic["V3"] <= vic["V4"]
@@ -421,9 +567,9 @@ def _decide(
     elif not natural:
         status = "KILL"
         reasons.append("Completions were absent outside the frozen very-near-boundary layer.")
-    elif not h5 and not h4:
+    elif not h5:
         status = "KILL"
-        reasons.append("Full traces nearly recovered Y_pre and no causal-soundness degradation remained.")
+        reasons.append("At least one predeclared full-trace classifier nearly recovered Y_pre.")
     elif all(hypotheses.values()):
         status = "GO"
         reasons.append("All five frozen hypotheses and all validity/naturalness checks passed.")
@@ -453,9 +599,9 @@ def _figures(
     figures = run_dir / "figures"
     branch_ids = list(config["verification"]["branches"])
     strength = np.asarray([config["verification"]["branches"][branch]["strength"] for branch in branch_ids], dtype=float)
-    best = recovery["best"]
-    post_records = [best[branch]["Y_post"]["R3_full_trace"] for branch in branch_ids]
-    pre_records = [best[branch]["Y_pre"]["R3_full_trace"] for branch in branch_ids]
+    falsification_max = recovery["falsification_max"]
+    post_records = [falsification_max[branch]["Y_post"]["R3_full_trace"] for branch in branch_ids]
+    pre_records = [falsification_max[branch]["Y_pre"]["R3_full_trace"] for branch in branch_ids]
     plt.figure(figsize=(9, 6))
     ax = plt.gca()
     _errorbar(ax, strength, [bootstrap[branch]["vic"] for branch in branch_ids], "VIC", "o")
@@ -519,7 +665,7 @@ def _figures(
 
     plt.figure(figsize=(9, 5))
     for target, marker in (("Y_pre", "o"), ("Y_post", "s")):
-        values = [_value(best, branch, target, "R3_full_trace") for branch in branch_ids]
+        values = [_value(decision, branch, target, "R3_full_trace") for branch in branch_ids]
         plt.plot(strength, values, marker=marker, label=f"{target} full-trace balanced accuracy")
     plt.xlabel("Verification strength (axial force)")
     plt.ylabel("Balanced accuracy")
@@ -543,21 +689,43 @@ def _reports(
     sanity: dict[str, Any],
     parents: pd.DataFrame,
     branch_metrics: dict[str, Any],
+    bootstrap: dict[str, Any],
+    recovery_records: list[dict[str, Any]],
     recovery: dict[str, Any],
     naturalness: dict[str, Any],
     config: dict[str, Any],
 ) -> None:
     report_dir = run_dir / "reports"
-    best = recovery["best"]
-    metric_lines = ["| Branch | Strength | VIC | VID | Causal soundness | Δcredit |", "|---|---:|---:|---:|---:|---:|"]
-    recovery_lines = ["| Branch | Y_pre R3 | Y_post R3 |", "|---|---:|---:|"]
+    falsification_max = recovery["falsification_max"]
+    metric_lines = [
+        "| Branch | Strength | 0→0 | 0→1 | 1→0 | 1→1 | VIC | VIC 95% CI | VID | Causal soundness | Δcredit |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    recovery_lines = ["| Branch | Y_pre R3 suite max (model) | Y_post R3 suite max (model) |", "|---|---:|---:|"]
+    near_lines = ["| Branch | Near n | Near VIC | 95% CI |", "|---|---:|---:|---:|"]
     for branch in config["verification"]["branches"]:
         metric = branch_metrics[branch]
+        vic_ci = bootstrap[branch]["vic"]
+        transitions = metric["transition_counts"]
         metric_lines.append(
-            f"| {branch} | {_fmt(metric['verification_strength'])} | {_fmt(metric['vic'])} | {_fmt(metric['vid'])} | {_fmt(metric['causal_soundness'])} | {_fmt(metric['delta_credit'])} |"
+            f"| {branch} | {_fmt(metric['verification_strength'])} | {transitions['0 -> 0']} | {transitions['0 -> 1']} | {transitions['1 -> 0']} | {transitions['1 -> 1']} | {_fmt(metric['vic'])} | [{_fmt(vic_ci['low'])}, {_fmt(vic_ci['high'])}] | {_fmt(metric['vid'])} | {_fmt(metric['causal_soundness'])} | {_fmt(metric['delta_credit'])} |"
         )
         recovery_lines.append(
-            f"| {branch} | {_fmt(_value(best, branch, 'Y_pre', 'R3_full_trace'))} | {_fmt(_value(best, branch, 'Y_post', 'R3_full_trace'))} |"
+            f"| {branch} | {_fmt(_value(falsification_max, branch, 'Y_pre', 'R3_full_trace'))} ({falsification_max[branch]['Y_pre']['R3_full_trace']['model'] if falsification_max[branch]['Y_pre']['R3_full_trace'] else 'N/A'}) | {_fmt(_value(falsification_max, branch, 'Y_post', 'R3_full_trace'))} ({falsification_max[branch]['Y_post']['R3_full_trace']['model'] if falsification_max[branch]['Y_post']['R3_full_trace'] else 'N/A'}) |"
+        )
+        near_ci = bootstrap[branch]["vic_near_success"]
+        near_lines.append(
+            f"| {branch} | {near_ci['n']} | {_fmt(near_ci['estimate'])} | [{_fmt(near_ci['low'])}, {_fmt(near_ci['high'])}] |"
+        )
+    detailed_recovery_lines = [
+        "| Branch | Target | Regime | Model | Train 0/1 | Test 0/1 | Status | Balanced accuracy | 95% CI | ROC-AUC |",
+        "|---|---|---|---|---:|---:|---|---:|---:|---:|",
+    ]
+    for record in recovery_records:
+        ci = record.get("ci")
+        interval = "N/A" if not ci else f"[{_fmt(ci['low'])}, {_fmt(ci['high'])}]"
+        detailed_recovery_lines.append(
+            f"| {record['branch']} | {record['target']} | {record['regime']} | {record['model']} | {record['train_negative_n']}/{record['train_positive_n']} | {record['test_negative_n']}/{record['test_positive_n']} | {record['status']} | {_fmt(record['balanced_accuracy'])} | {interval} | {_fmt(record['roc_auc'])} |"
         )
     categories = parents["terminal_category"].value_counts().to_dict()
     prohibited = [
@@ -595,6 +763,10 @@ V0 hold, V1 passive read-only, and V2/V3/V4 frozen axial probes. Check A={sanity
 ## 7. Verification-Induced Completion
 {chr(10).join(metric_lines)}
 
+VIC uses all `Y_pre=0` parents as its frozen denominator; the event additionally requires `control_Y_post=0` and probe `Y_post=1`.
+
+{chr(10).join(near_lines)}
+
 ## 8. Verification-Induced Disruption
 Reported in the same complete transition metrics table and in `figures/transition_matrix.png`.
 
@@ -605,10 +777,12 @@ The table reports `P(Y_pre=1 | Y_post=1)` for every branch. V0 spontaneous compl
 {chr(10).join(recovery_lines)}
 
 ## 11. Y_pre Retrospective Recoverability
-R1 final state, R2 trajectory summaries, and R3 resampled full traces were each evaluated with LogisticRegression, RandomForestClassifier, and MLPClassifier using a disjoint parent-level split.
+R1 final state, R2 trajectory summaries, and R3 resampled full traces were each evaluated with LogisticRegression, RandomForestClassifier, and MLPClassifier using a disjoint parent-level split. The gate's predeclared strongest-baseline rule is `{recovery['falsification_rule']}` across the complete frozen suite. No post-hoc model family is added or removed.
 
 ## 12. Full-Trajectory Challenge
-The table shows the strongest observed R3 balanced accuracy, not an impossibility bound. Train/test parent overlap: `{recovery['split']['overlap']}`.
+The table shows R3 balanced accuracy, not an impossibility bound. Both outcomes use the predeclared suite maximum. Train/test parent overlap: `{recovery['split']['overlap']}`. Per-parent predictions and majority baselines are saved in the results ledgers.
+
+{chr(10).join(detailed_recovery_lines)}
 
 ## 13. Success-Margin / Boundary Analysis
 Strong-probe completions={naturalness['strong_completion_count']}; very-near fraction={_fmt(naturalness['very_near_fraction'])}; non-very-near completions={naturalness['non_very_near_completion_count']}.
@@ -653,14 +827,17 @@ The effect may be a threshold-sensitive artifact of a scripted controller and a 
 def analyze_run(run_path: str | Path) -> dict[str, Any]:
     run_dir = Path(run_path).resolve()
     config = load_config(run_dir / "config.yaml")
+    manifest = _verify_run_integrity(run_dir, config)
+    analysis_provenance = _analysis_provenance(run_dir)
     results = run_dir / "results"
     parents = pd.read_parquet(results / "parent_rollouts.parquet")
     branches = annotate_transitions(pd.read_parquet(results / "verification_branches.parquet"))
-    branches.to_parquet(results / "verification_branches.parquet", index=False)
     branch_metrics, bootstrap = _branch_metrics(branches, config)
     features = _feature_sets(branches, config, run_dir)
-    recovery_records, recovery = _recoverability(branches, features, config)
+    recovery_records, recovery, predictions, assignments = _recoverability(branches, features, config)
     pd.DataFrame(recovery_records).to_parquet(results / "recoverability_results.parquet", index=False)
+    pd.DataFrame(predictions).to_parquet(results / "recoverability_predictions.parquet", index=False)
+    pd.DataFrame(assignments).to_parquet(results / "split_assignments.parquet", index=False)
     naturalness_table, naturalness = _naturalness(branches, config)
     pd.DataFrame(naturalness_table).to_parquet(results / "vic_by_margin.parquet", index=False)
     status, hypotheses, sanity, reasons = _decide(branches, branch_metrics, recovery, naturalness, config)
@@ -673,14 +850,24 @@ def analyze_run(run_path: str | Path) -> dict[str, Any]:
         "naturalness": naturalness,
         "sanity_checks": sanity,
         "decision_reasons": reasons,
+        "analysis_provenance": analysis_provenance,
     }
     _write_json(results / "metrics.json", metrics)
     _write_json(results / "bootstrap_results.json", bootstrap)
     _figures(run_dir, parents, branches, branch_metrics, bootstrap, recovery, naturalness_table, config)
-    _reports(run_dir, status, hypotheses, reasons, sanity, parents, branch_metrics, recovery, naturalness, config)
+    _reports(
+        run_dir, status, hypotheses, reasons, sanity, parents, branch_metrics, bootstrap,
+        recovery_records, recovery, naturalness, config,
+    )
     manifest_path = run_dir / "manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest.update(scientific_status=status, termination_gate=metrics["termination_gate"])
+    analysis_history = manifest.setdefault("analysis_history", [])
+    if analysis_provenance not in analysis_history:
+        analysis_history.append(analysis_provenance)
+    manifest.update(
+        scientific_status=status,
+        termination_gate=metrics["termination_gate"],
+        latest_analysis_provenance=analysis_provenance,
+    )
     _write_json(manifest_path, manifest)
     print(f"SCIENTIFIC_STATUS={status}")
     return metrics

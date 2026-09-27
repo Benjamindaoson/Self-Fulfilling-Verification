@@ -15,6 +15,9 @@ model:
   wall_thickness: 0.014
   clearance: [0.0004, 0.0018]
   friction: [0.25, 0.90]
+  contact_timeconst: [0.0045, 0.0080]
+  contact_dampratio: [0.80, 1.20]
+  contact_width: [0.0007, 0.0013]
   peg_mass: 0.10
   dof_damping: 1.5
   angular_damping: 0.02
@@ -48,6 +51,7 @@ analysis:
   test_fraction: 0.30
   split_seed: 31415
   classifier_seed: 2718
+  falsification_rule: max_predeclared_suite
   resample_steps: 32
   margin_bins: [-1000000.0, -2.5, -1.0, -0.25, 0.0, 1000000.0]
   margin_labels: [far_failure, medium_distance, near_boundary, very_near_boundary, success]

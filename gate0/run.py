@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import hashlib
+from importlib.metadata import version
 import json
 from pathlib import Path
 import platform
@@ -17,14 +18,25 @@ import numpy as np
 import pandas as pd
 
 from gate0 import __version__
-from gate0.config import config_hash, load_config
+from gate0.config import config_hash, load_config, safe_component
 from gate0.metrics import annotate_transitions
 from gate0.sim import BranchResult, ConnectorEpisode, TaskResult
 
 
-def _git_commit() -> str:
-    result = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
-    return result.stdout.strip() if result.returncode == 0 else "UNCOMMITTED"
+def _git_output(repo_root: Path, *args: str) -> str:
+    result = subprocess.run(["git", *args], cwd=repo_root, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def _repo_root(config_path: Path) -> Path:
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=config_path.parent, capture_output=True, text=True, check=False
+    )
+    if result.returncode != 0:
+        raise RuntimeError("the frozen experiment must run from a Git repository")
+    return Path(result.stdout.strip()).resolve()
 
 
 def _sha256(path: Path) -> str:
@@ -112,7 +124,7 @@ def _branch_row(seed: int, branch: BranchResult, trace: dict[str, Any], timestep
         "final_contact_count": int(trajectory["contact_count"][-1]),
         "final_contact_force": float(trajectory["contact_force"][-1]),
         "max_contact_force": float(np.max(trajectory["contact_force"])),
-        "force_impulse": float(np.sum(trajectory["contact_force"]) * timestep),
+        "force_impulse": float(np.sum(trajectory["contact_force"][1:]) * timestep),
         "trajectory_path": trace["trajectory_path"],
         "trajectory_sha256": trace["sha256"],
         "trajectory_timesteps": trace["timesteps"],
@@ -122,10 +134,28 @@ def _branch_row(seed: int, branch: BranchResult, trace: dict[str, Any], timestep
 def run_experiment(config_path: str | Path, run_id: str | None = None) -> Path:
     config_path = Path(config_path).resolve()
     config = load_config(config_path)
+    if run_id is not None:
+        safe_component(run_id, "run_id")
+    repo_root = _repo_root(config_path)
+    git_commit = _git_output(repo_root, "rev-parse", "HEAD")
+    git_dirty = bool(_git_output(repo_root, "status", "--porcelain=v1"))
+    if git_dirty:
+        raise RuntimeError("refusing scientific run from a dirty Git worktree")
+    lock_path = repo_root / "requirements.lock.txt"
+    if not lock_path.is_file():
+        raise RuntimeError("requirements.lock.txt is required for a scientific run")
     digest = config_hash(config)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     run_id = run_id or f"{timestamp}_{config['experiment']['name']}_{digest[:8]}"
-    run_dir = Path(config["experiment"]["output_root"]).resolve() / run_id
+    safe_component(run_id, "run_id")
+    output_root = Path(config["experiment"]["output_root"])
+    output_root = (output_root if output_root.is_absolute() else repo_root / output_root).resolve()
+    try:
+        output_root.relative_to(repo_root)
+    except ValueError as exc:
+        raise ValueError("experiment.output_root must remain inside the repository") from exc
+    run_dir = (output_root / run_id).resolve()
+    run_dir.relative_to(output_root)
     if run_dir.exists():
         raise FileExistsError(f"run directory already exists: {run_dir}")
     for directory in ("results", "trajectories", "snapshots", "figures", "reports"):
@@ -135,8 +165,14 @@ def run_experiment(config_path: str | Path, run_id: str | None = None) -> Path:
         "run_id": run_id,
         "status": "RUNNING",
         "started_at": datetime.now(timezone.utc).isoformat(),
-        "git_commit": _git_commit(),
+        "git_commit": git_commit,
+        "git_dirty": git_dirty,
         "config_hash": digest,
+        "dependency_lock_sha256": _sha256(lock_path),
+        "dependency_versions": {
+            package: version(package)
+            for package in ("matplotlib", "mujoco", "numpy", "pandas", "pyarrow", "PyYAML", "scikit-learn", "scipy")
+        },
         "code_version": __version__,
         "python_version": platform.python_version(),
         "mujoco_version": mujoco.__version__,
@@ -198,6 +234,14 @@ def run_experiment(config_path: str | Path, run_id: str | None = None) -> Path:
         parents_df.to_parquet(results_dir / "parent_rollouts.parquet", index=False)
         branches_df.to_parquet(results_dir / "verification_branches.parquet", index=False)
         trajectory_df.to_parquet(results_dir / "trajectory_index.parquet", index=False)
+        manifest["input_ledger_hashes"] = {
+            path.relative_to(run_dir).as_posix(): _sha256(path)
+            for path in (
+                results_dir / "parent_rollouts.parquet",
+                results_dir / "verification_branches.parquet",
+                results_dir / "trajectory_index.parquet",
+            )
+        }
         manifest.update(
             status="SIMULATION_COMPLETE",
             parent_count=int(len(parents_df)),
