@@ -279,6 +279,38 @@ def test_suite_max_near_perfect_y_pre_recovery_unconditionally_kills() -> None:
     assert status == "KILL"
 
 
+def test_figures_render_from_suite_max_without_legacy_selector(tmp_path: Path) -> None:
+    config = config_module.load_config(Path("configs/gate0_smoke.yaml"))
+    (tmp_path / "figures").mkdir()
+    branch_ids = list(config["verification"]["branches"])
+    branches = pd.DataFrame(
+        [{"branch": branch, "Y_pre": index % 2, "Y_post": (index + 1) % 2} for index, branch in enumerate(branch_ids)]
+    )
+    parents = pd.DataFrame({"pre_success_margin": [-1.0, 0.0, 1.0]})
+    interval = {"estimate": 0.5, "low": 0.4, "high": 0.6, "n": 10}
+    bootstrap = {branch: {"vic": interval, "causal_soundness": interval} for branch in branch_ids}
+    recovery = {
+        "falsification_max": {
+            branch: {
+                target: {"R3_full_trace": {"balanced_accuracy": 0.5, "ci": interval}}
+                for target in ("Y_pre", "Y_post")
+            }
+            for branch in branch_ids
+        }
+    }
+    naturalness = [
+        {"branch": branch, "margin_bin": label, "vic": 0.0}
+        for branch in branch_ids
+        for label in config["analysis"]["margin_labels"]
+    ]
+
+    analyze_module._figures(
+        tmp_path, parents, branches, {}, bootstrap, recovery, naturalness, config
+    )
+
+    assert (tmp_path / "figures" / "pre_vs_post_recoverability.png").is_file()
+
+
 def test_run_integrity_rejects_mutated_config_before_analysis(tmp_path: Path) -> None:
     config = config_module.load_config(Path("configs/gate0_smoke.yaml"))
     run_dir = tmp_path / "run"

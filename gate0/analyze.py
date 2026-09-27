@@ -665,7 +665,7 @@ def _figures(
 
     plt.figure(figsize=(9, 5))
     for target, marker in (("Y_pre", "o"), ("Y_post", "s")):
-        values = [_value(decision, branch, target, "R3_full_trace") for branch in branch_ids]
+        values = [_value(falsification_max, branch, target, "R3_full_trace") for branch in branch_ids]
         plt.plot(strength, values, marker=marker, label=f"{target} full-trace balanced accuracy")
     plt.xlabel("Verification strength (axial force)")
     plt.ylabel("Balanced accuracy")
