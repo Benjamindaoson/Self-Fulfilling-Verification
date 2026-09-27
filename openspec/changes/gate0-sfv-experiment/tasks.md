@@ -19,9 +19,9 @@
 
 - [x] 4.1 Run the full test suite and a 20-parent smoke experiment; repair failures and audit all sanity checks
 - [x] 4.2 Run a separate-seed debug calibration sweep and freeze physically distinct, non-trivial main probe strengths
-- [ ] 4.3 Run at least 500 natural parent rollouts with five paired branches and re-run analysis from saved ledgers
+- [x] 4.3 Run at least 500 natural parent rollouts with five paired branches and re-run analysis from saved ledgers
 
 ## 5. Independent Verification and Delivery
 
-- [ ] 5.1 Audit generated manifests, hashes, counts, transitions, split isolation, required files, prohibited claims, and exact reproduction commands
-- [ ] 5.2 Run final tests and smoke/local commands, validate OpenSpec, review the Git diff for secrets or unsupported claims, and create a reproducible Git commit
+- [x] 5.1 Audit generated manifests, hashes, counts, transitions, split isolation, required files, prohibited claims, and exact reproduction commands
+- [x] 5.2 Run final tests and smoke/local commands, validate OpenSpec, review the Git diff for secrets or unsupported claims, and create a reproducible Git commit
