@@ -2,6 +2,30 @@
 
 This repository runs one CPU-only MuJoCo experiment: whether a physical verification probe can complete a connector insertion and make post-verification success look attributable to the preceding task action.
 
+## Result
+
+The frozen Gate-0 decision is **KILL**, not because the physical effect was
+absent, but because the original strong claim did not survive:
+
+- the strongest probe produced a verification-induced completion rate of
+  `0.137` (95% bootstrap CI `[0.108, 0.169]`);
+- causal soundness fell to `0.474`;
+- 59 of 61 strong-probe completions were in the predeclared very-near-boundary
+  region; and
+- full verification traces recovered the pre-verification outcome with `1.000`
+  balanced accuracy under the strongest predeclared model suite.
+
+The evidence supports a narrow outcome-contamination result. It does not
+support history erasure, information-theoretic non-identifiability, or
+generalization beyond this simulated connector task.
+
+## Evidence and data
+
+- Compact evidence bundle: [`artifacts/gate0-main/`](artifacts/gate0-main/)
+- Full frozen run: [Hugging Face Dataset](https://huggingface.co/datasets/jlai300/self-fulfilling-verification-gate0)
+- Generated report: [`artifacts/gate0-main/reports/gate0_report.md`](artifacts/gate0-main/reports/gate0_report.md)
+- Frozen decision: [`artifacts/gate0-main/reports/gate0_decision.md`](artifacts/gate0-main/reports/gate0_decision.md)
+
 ## Local setup
 
 ```powershell

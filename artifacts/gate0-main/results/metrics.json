@@ -1,0 +1,933 @@
+{
+  "analysis_provenance": {
+    "dependency_lock_sha256": "3136961cd556f05c622d492d3e4ad9ed5eb0fcdd8927bad5360f9aad4af59172",
+    "dependency_versions": {
+      "PyYAML": "6.0.3",
+      "matplotlib": "3.11.2",
+      "mujoco": "3.14.0",
+      "numpy": "2.5.3",
+      "pandas": "2.3.3",
+      "pyarrow": "22.0.0",
+      "scikit-learn": "1.9.1",
+      "scipy": "1.18.1"
+    },
+    "git_commit": "2360aa6a7369a92ee96adfa1d82de2e9db1d42da",
+    "git_dirty": false,
+    "python_version": "3.12.10"
+  },
+  "branch_metrics": {
+    "V0": {
+      "causal_soundness": 1.0,
+      "control_stable_pre_failures": 444,
+      "delta_credit": 0.0,
+      "n": 500,
+      "pre_failures": 444,
+      "pre_successes": 56,
+      "transition_counts": {
+        "0 -> 0": 444,
+        "0 -> 1": 0,
+        "1 -> 0": 0,
+        "1 -> 1": 56
+      },
+      "verification_strength": 0.0,
+      "vic": 0.0,
+      "vic_near_success": 0.0,
+      "vid": 0.0
+    },
+    "V1": {
+      "causal_soundness": 1.0,
+      "control_stable_pre_failures": 444,
+      "delta_credit": 0.0,
+      "n": 500,
+      "pre_failures": 444,
+      "pre_successes": 56,
+      "transition_counts": {
+        "0 -> 0": 444,
+        "0 -> 1": 0,
+        "1 -> 0": 0,
+        "1 -> 1": 56
+      },
+      "verification_strength": 0.0,
+      "vic": 0.0,
+      "vic_near_success": 0.0,
+      "vid": 0.0
+    },
+    "V2": {
+      "causal_soundness": 0.7,
+      "control_stable_pre_failures": 444,
+      "delta_credit": 0.048,
+      "n": 500,
+      "pre_failures": 444,
+      "pre_successes": 56,
+      "transition_counts": {
+        "0 -> 0": 420,
+        "0 -> 1": 24,
+        "1 -> 0": 0,
+        "1 -> 1": 56
+      },
+      "verification_strength": 0.02,
+      "vic": 0.05405405405405406,
+      "vic_near_success": 0.08759124087591241,
+      "vid": 0.0
+    },
+    "V3": {
+      "causal_soundness": 0.5092592592592593,
+      "control_stable_pre_failures": 444,
+      "delta_credit": 0.104,
+      "n": 500,
+      "pre_failures": 444,
+      "pre_successes": 56,
+      "transition_counts": {
+        "0 -> 0": 391,
+        "0 -> 1": 53,
+        "1 -> 0": 1,
+        "1 -> 1": 55
+      },
+      "verification_strength": 0.08,
+      "vic": 0.11936936936936937,
+      "vic_near_success": 0.19343065693430658,
+      "vid": 0.017857142857142856
+    },
+    "V4": {
+      "causal_soundness": 0.47413793103448276,
+      "control_stable_pre_failures": 444,
+      "delta_credit": 0.12000000000000001,
+      "n": 500,
+      "pre_failures": 444,
+      "pre_successes": 56,
+      "transition_counts": {
+        "0 -> 0": 383,
+        "0 -> 1": 61,
+        "1 -> 0": 1,
+        "1 -> 1": 55
+      },
+      "verification_strength": 0.12,
+      "vic": 0.1373873873873874,
+      "vic_near_success": 0.22262773722627738,
+      "vid": 0.017857142857142856
+    }
+  },
+  "decision_reasons": [
+    "Completions were absent outside the frozen very-near-boundary layer."
+  ],
+  "hypotheses": {
+    "H1": true,
+    "H2": true,
+    "H3": true,
+    "H4": true,
+    "H5": false
+  },
+  "naturalness": {
+    "non_very_near_completion_count": 2,
+    "strong_completion_count": 61,
+    "very_near_completion_count": 59,
+    "very_near_fraction": 0.9672131147540983
+  },
+  "recoverability": {
+    "falsification_max": {
+      "V0": {
+        "Y_post": {
+          "R1_final": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V0",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          },
+          "R2_summary": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9963235294117647,
+            "branch": "V0",
+            "ci": {
+              "estimate": 0.9963235294117647,
+              "high": 1.0,
+              "low": 0.9889705882352942,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.1,
+            "regime": "R2_summary",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V0",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "LogisticRegression",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          }
+        },
+        "Y_pre": {
+          "R1_final": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V0",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          },
+          "R2_summary": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9963235294117647,
+            "branch": "V0",
+            "ci": {
+              "estimate": 0.9963235294117647,
+              "high": 1.0,
+              "low": 0.9889705882352942,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.1,
+            "regime": "R2_summary",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V0",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "LogisticRegression",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          }
+        }
+      },
+      "V1": {
+        "Y_post": {
+          "R1_final": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V1",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          },
+          "R2_summary": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9963235294117647,
+            "branch": "V1",
+            "ci": {
+              "estimate": 0.9963235294117647,
+              "high": 1.0,
+              "low": 0.9889705882352942,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.1,
+            "regime": "R2_summary",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V1",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "LogisticRegression",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          }
+        },
+        "Y_pre": {
+          "R1_final": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V1",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          },
+          "R2_summary": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9963235294117647,
+            "branch": "V1",
+            "ci": {
+              "estimate": 0.9963235294117647,
+              "high": 1.0,
+              "low": 0.9889705882352942,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.1,
+            "regime": "R2_summary",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V1",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "LogisticRegression",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.0
+          }
+        }
+      },
+      "V2": {
+        "Y_post": {
+          "R1_final": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9961240310077519,
+            "branch": "V2",
+            "ci": {
+              "estimate": 0.9961240310077519,
+              "high": 1.0,
+              "low": 0.9883720930232558,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.14666666666666667,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 129,
+            "test_positive_n": 21,
+            "test_positive_rate": 0.14,
+            "train_n": 350,
+            "train_negative_n": 291,
+            "train_positive_n": 59,
+            "verification_strength": 0.02
+          },
+          "R2_summary": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9961240310077519,
+            "branch": "V2",
+            "ci": {
+              "estimate": 0.9961240310077519,
+              "high": 1.0,
+              "low": 0.9883720930232558,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.14666666666666667,
+            "regime": "R2_summary",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 129,
+            "test_positive_n": 21,
+            "test_positive_rate": 0.14,
+            "train_n": 350,
+            "train_negative_n": 291,
+            "train_positive_n": 59,
+            "verification_strength": 0.02
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V2",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "LogisticRegression",
+            "predicted_positive_rate": 0.14,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 129,
+            "test_positive_n": 21,
+            "test_positive_rate": 0.14,
+            "train_n": 350,
+            "train_negative_n": 291,
+            "train_positive_n": 59,
+            "verification_strength": 0.02
+          }
+        },
+        "Y_pre": {
+          "R1_final": {
+            "accuracy": 0.98,
+            "balanced_accuracy": 0.9889705882352942,
+            "branch": "V2",
+            "ci": {
+              "estimate": 0.9889705882352942,
+              "high": 1.0,
+              "low": 0.9742647058823529,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.11333333333333333,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.02
+          },
+          "R2_summary": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V2",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R2_summary",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.02
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V2",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.02
+          }
+        }
+      },
+      "V3": {
+        "Y_post": {
+          "R1_final": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V3",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.19333333333333333,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 121,
+            "test_positive_n": 29,
+            "test_positive_rate": 0.19333333333333333,
+            "train_n": 350,
+            "train_negative_n": 271,
+            "train_positive_n": 79,
+            "verification_strength": 0.08
+          },
+          "R2_summary": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9958677685950413,
+            "branch": "V3",
+            "ci": {
+              "estimate": 0.9958677685950413,
+              "high": 1.0,
+              "low": 0.9876033057851239,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.2,
+            "regime": "R2_summary",
+            "roc_auc": 0.999715018523796,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 121,
+            "test_positive_n": 29,
+            "test_positive_rate": 0.19333333333333333,
+            "train_n": 350,
+            "train_negative_n": 271,
+            "train_positive_n": 79,
+            "verification_strength": 0.08
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V3",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "LogisticRegression",
+            "predicted_positive_rate": 0.19333333333333333,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 121,
+            "test_positive_n": 29,
+            "test_positive_rate": 0.19333333333333333,
+            "train_n": 350,
+            "train_negative_n": 271,
+            "train_positive_n": 79,
+            "verification_strength": 0.08
+          }
+        },
+        "Y_pre": {
+          "R1_final": {
+            "accuracy": 0.9466666666666667,
+            "balanced_accuracy": 0.9705882352941176,
+            "branch": "V3",
+            "ci": {
+              "estimate": 0.9705882352941176,
+              "high": 0.9889705882352942,
+              "low": 0.9521139705882353,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.14666666666666667,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.08
+          },
+          "R2_summary": {
+            "accuracy": 0.9866666666666667,
+            "balanced_accuracy": 0.9926470588235294,
+            "branch": "V3",
+            "ci": {
+              "estimate": 0.9926470588235294,
+              "high": 1.0,
+              "low": 0.9816176470588236,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.10666666666666667,
+            "regime": "R2_summary",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.08
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V3",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.08
+          }
+        }
+      },
+      "V4": {
+        "Y_post": {
+          "R1_final": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9957627118644068,
+            "branch": "V4",
+            "ci": {
+              "estimate": 0.9957627118644068,
+              "high": 1.0,
+              "low": 0.9872881355932204,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.22,
+            "regime": "R1_final",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 118,
+            "test_positive_n": 32,
+            "test_positive_rate": 0.21333333333333335,
+            "train_n": 350,
+            "train_negative_n": 266,
+            "train_positive_n": 84,
+            "verification_strength": 0.12
+          },
+          "R2_summary": {
+            "accuracy": 0.9866666666666667,
+            "balanced_accuracy": 0.9915254237288136,
+            "branch": "V4",
+            "ci": {
+              "estimate": 0.9915254237288136,
+              "high": 1.0,
+              "low": 0.978813559322034,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.22666666666666666,
+            "regime": "R2_summary",
+            "roc_auc": 0.9984110169491526,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 118,
+            "test_positive_n": 32,
+            "test_positive_rate": 0.21333333333333335,
+            "train_n": 350,
+            "train_negative_n": 266,
+            "train_positive_n": 84,
+            "verification_strength": 0.12
+          },
+          "R3_full_trace": {
+            "accuracy": 0.9866666666666667,
+            "balanced_accuracy": 0.9801377118644068,
+            "branch": "V4",
+            "ci": {
+              "estimate": 0.9801377118644068,
+              "high": 1.0,
+              "low": 0.9446504237288136,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.21333333333333335,
+            "regime": "R3_full_trace",
+            "roc_auc": 0.9994703389830508,
+            "status": "OK",
+            "target": "Y_post",
+            "test_n": 150,
+            "test_negative_n": 118,
+            "test_positive_n": 32,
+            "test_positive_rate": 0.21333333333333335,
+            "train_n": 350,
+            "train_negative_n": 266,
+            "train_positive_n": 84,
+            "verification_strength": 0.12
+          }
+        },
+        "Y_pre": {
+          "R1_final": {
+            "accuracy": 0.9266666666666666,
+            "balanced_accuracy": 0.9595588235294117,
+            "branch": "V4",
+            "ci": {
+              "estimate": 0.9595588235294117,
+              "high": 0.9816176470588236,
+              "low": 0.9375,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.16666666666666666,
+            "regime": "R1_final",
+            "roc_auc": 0.9984243697478992,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.12
+          },
+          "R2_summary": {
+            "accuracy": 0.9933333333333333,
+            "balanced_accuracy": 0.9963235294117647,
+            "branch": "V4",
+            "ci": {
+              "estimate": 0.9963235294117647,
+              "high": 1.0,
+              "low": 0.9889705882352942,
+              "n": 150
+            },
+            "model": "RandomForestClassifier",
+            "predicted_positive_rate": 0.1,
+            "regime": "R2_summary",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.12
+          },
+          "R3_full_trace": {
+            "accuracy": 1.0,
+            "balanced_accuracy": 1.0,
+            "branch": "V4",
+            "ci": {
+              "estimate": 1.0,
+              "high": 1.0,
+              "low": 1.0,
+              "n": 150
+            },
+            "model": "LogisticRegression",
+            "predicted_positive_rate": 0.09333333333333334,
+            "regime": "R3_full_trace",
+            "roc_auc": 1.0,
+            "status": "OK",
+            "target": "Y_pre",
+            "test_n": 150,
+            "test_negative_n": 136,
+            "test_positive_n": 14,
+            "test_positive_rate": 0.09333333333333334,
+            "train_n": 350,
+            "train_negative_n": 308,
+            "train_positive_n": 42,
+            "verification_strength": 0.12
+          }
+        }
+      }
+    },
+    "falsification_rule": "max_predeclared_suite",
+    "split": {
+      "overlap": [],
+      "test_parent_count": 150,
+      "train_parent_count": 350
+    }
+  },
+  "sanity_checks": {
+    "check_A_y_pre_identical": true,
+    "check_B_initial_hash_identical": true,
+    "check_C_pass": true,
+    "check_C_v0_completion_rate": 0.0,
+    "check_D_mean_depth_effect": {
+      "V2": 0.0004586713472343887,
+      "V3": 0.0014623203197582852,
+      "V4": 0.0018774670496484714
+    },
+    "check_D_pass": true,
+    "check_E_pass": true,
+    "check_E_strong_probe_vic": 0.1373873873873874,
+    "naturalness_pass": false
+  },
+  "scientific_status": "KILL",
+  "termination_gate": "GATE_0"
+}
